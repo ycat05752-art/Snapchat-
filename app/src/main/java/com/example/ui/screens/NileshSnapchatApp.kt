@@ -88,6 +88,7 @@ import com.example.ui.theme.SnapGold
 import com.example.ui.theme.SnapYellow
 import com.example.ui.viewmodel.MainViewModel
 import com.google.firebase.Firebase
+import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.auth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -109,6 +110,42 @@ private enum class SubOverlayScreen {
 
 @Composable
 fun NileshSnapchatApp() {
+    val context = LocalContext.current
+    val firebaseInitialized = remember(context) {
+        FirebaseApp.getApps(context).isNotEmpty() || FirebaseApp.initializeApp(context) != null
+    }
+
+    if (!firebaseInitialized) {
+        NileshSnapchatTheme(darkTheme = true) {
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = ObsidianBlack
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(24.dp),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "NILESH SNAPCHAT",
+                        style = MaterialTheme.typography.headlineSmall.copy(
+                            color = SnapYellow,
+                            fontWeight = FontWeight.Bold
+                        )
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "Firebase config (app/google-services.json) was not included in this build. Add app/google-services.json to the repository and rebuild to enable Google Sign-In, Firestore, and AI Chat.",
+                        style = MaterialTheme.typography.bodyMedium.copy(color = PureWhite)
+                    )
+                }
+            }
+        }
+        return
+    }
+
     var showSplash by remember { mutableStateOf(true) }
     var currentUser by remember { mutableStateOf(Firebase.auth.currentUser) }
 

@@ -55,8 +55,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ ! -f "app/google-services.json" ]; then
-            echo "::error::Missing app/google-services.json in repository. Commit and push app/google-services.json so Google Services resources can be generated."
-            exit 1
+            echo "::warning::app/google-services.json not found in repository. Building with googleServices.missing.passthrough=true; commit app/google-services.json for full Firebase runtime support."
           fi
           SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
           echo "Using Android SDK root: $SDK_ROOT"
