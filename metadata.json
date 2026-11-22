@@ -1,0 +1,6 @@
+{
+  "name": "NILESH SNAPCHAT",
+  "description": "Social camera app with 1000+ filters, My Saved Snaps, 24h Stories, PN Points, chat, and AI-simulated Indian friends.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

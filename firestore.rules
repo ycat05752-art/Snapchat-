@@ -1,0 +1,344 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global safety net: deny everything by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidUserProfile(data, userId) {
+      return data.userId == userId &&
+        data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 50 &&
+        data.username is string && data.username.size() >= 3 && data.username.size() <= 30 &&
+        data.pnPoints is int && data.pnPoints >= 0 && data.pnPoints <= 100000000 &&
+        data.totalSnapsSent is int && data.totalSnapsSent >= 0 && data.totalSnapsSent <= 1000000 &&
+        data.darkMode is bool &&
+        data.locationSharingEnabled is bool &&
+        data.ghostMode is bool &&
+        (!('bio' in data) || (data.bio is string && data.bio.size() <= 200)) &&
+        (!('email' in data) || (data.email is string && data.email.size() <= 120)) &&
+        (!('phone' in data) || (data.phone is string && data.phone.size() <= 30)) &&
+        (!('avatarColorHex' in data) || (data.avatarColorHex is string && data.avatarColorHex.size() <= 12)) &&
+        (!('whoCanContact' in data) || data.whoCanContact in ['everyone', 'friends']) &&
+        (!('whoCanViewStory' in data) || data.whoCanViewStory in ['friends', 'close_friends', 'private']) &&
+        (!('simAutoSnapEnabled' in data) || data.simAutoSnapEnabled is bool) &&
+        (!('simOpenSpeed' in data) || data.simOpenSpeed in ['realistic', 'fast']) &&
+        (!('soundsEnabled' in data) || data.soundsEnabled is bool) &&
+        (!('vibrationEnabled' in data) || data.vibrationEnabled is bool) &&
+        (!('appLanguage' in data) || data.appLanguage in ['english', 'hinglish']) &&
+        (!('uploadQuality' in data) || data.uploadQuality in ['standard', 'high']) &&
+        (!('downloadQuality' in data) || data.downloadQuality in ['standard', 'high']) &&
+        (!('notificationsEnabled' in data) || data.notificationsEnabled is bool);
+    }
+
+    function isValidNote(data, userId) {
+      return data.userId == userId &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 100 &&
+        data.content is string && data.content.size() <= 2000 &&
+        data.colorTag is string && data.colorTag.size() >= 1 && data.colorTag.size() <= 20 &&
+        data.pinned is bool;
+    }
+
+    function isValidSentSnap(data, userId) {
+      return data.userId == userId &&
+        data.recipientId is string && data.recipientId.size() >= 1 && data.recipientId.size() <= 128 &&
+        data.recipientName is string && data.recipientName.size() >= 1 && data.recipientName.size() <= 60 &&
+        data.caption is string && data.caption.size() <= 200 &&
+        data.filterName is string && data.filterName.size() <= 80 &&
+        data.mediaType in ['photo', 'video'] &&
+        data.viewOnce is bool &&
+        data.replayAllowed is bool &&
+        data.timerSeconds is int && data.timerSeconds >= 1 && data.timerSeconds <= 60 &&
+        data.status in ['SENDING', 'SENT', 'DELIVERED', 'OPENED', 'EXPIRED'] &&
+        data.pnAwarded is int && data.pnAwarded >= 0 && data.pnAwarded <= 10000;
+    }
+
+    function isValidPnHistory(data, userId) {
+      return data.userId == userId &&
+        data.delta is int && data.delta >= 1 && data.delta <= 10000 &&
+        data.reason is string && data.reason.size() >= 1 && data.reason.size() <= 120 &&
+        (!('snapId' in data) || (data.snapId is string && data.snapId.size() <= 128));
+    }
+
+    function isValidStory(data, userId) {
+      return data.userId == userId &&
+        data.authorName is string && data.authorName.size() >= 1 && data.authorName.size() <= 60 &&
+        data.storyType in ['photo', 'video', 'text'] &&
+        data.caption is string && data.caption.size() <= 300 &&
+        data.filterName is string && data.filterName.size() <= 80 &&
+        data.musicTrack is string && data.musicTrack.size() <= 80 &&
+        data.privacy in ['friends', 'close_friends', 'private'] &&
+        data.bgColorHex is string && data.bgColorHex.size() <= 12 &&
+        data.viewCount is int && data.viewCount >= 0 && data.viewCount <= 1000000 &&
+        data.expiresAtMillis is int && data.expiresAtMillis > 0 &&
+        (!('localMediaPath' in data) || (data.localMediaPath is string && data.localMediaPath.size() <= 300));
+    }
+
+    function isValidFriendState(data, userId, friendId) {
+      return data.userId == userId &&
+        data.friendId == friendId &&
+        data.relationStatus in ['friend', 'pending_incoming', 'blocked', 'none'] &&
+        data.reported is bool &&
+        data.unreadCount is int && data.unreadCount >= 0 && data.unreadCount <= 10000 &&
+        data.lastMessage is string && data.lastMessage.size() <= 200;
+    }
+
+    function isValidChatMessage(data, userId, friendId) {
+      return data.userId == userId &&
+        data.friendId == friendId &&
+        data.senderRole in ['user', 'friend'] &&
+        data.messageType in ['text', 'photo', 'video', 'voice', 'sticker', 'snap_reply'] &&
+        data.text is string && data.text.size() <= 2000 &&
+        data.deliveryStatus in ['SENT', 'DELIVERED', 'SEEN'] &&
+        (!('mediaUri' in data) || (data.mediaUri is string && data.mediaUri.size() <= 300)) &&
+        (!('reaction' in data) || (data.reaction is string && data.reaction.size() <= 16));
+    }
+
+    function isValidNotification(data, userId) {
+      return data.userId == userId &&
+        data.category in ['snap', 'chat', 'friend_request', 'story', 'pn_points', 'memory'] &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 100 &&
+        data.body is string && data.body.size() >= 1 && data.body.size() <= 250 &&
+        data.readFlag is bool &&
+        (!('relatedId' in data) || (data.relatedId is string && data.relatedId.size() <= 128));
+    }
+
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow list: if isOwner(userId);
+
+      allow create: if isOwner(userId) && isValidId(userId) &&
+        incoming().keys().hasAll([
+          'userId', 'displayName', 'username', 'pnPoints', 'totalSnapsSent',
+          'darkMode', 'locationSharingEnabled', 'ghostMode', 'createdAt', 'updatedAt'
+        ]) &&
+        incoming().keys().hasOnly([
+          'userId', 'displayName', 'username', 'bio', 'email', 'phone', 'avatarColorHex',
+          'pnPoints', 'totalSnapsSent', 'darkMode', 'locationSharingEnabled', 'ghostMode',
+          'whoCanContact', 'whoCanViewStory', 'simAutoSnapEnabled', 'simOpenSpeed',
+          'soundsEnabled', 'vibrationEnabled', 'appLanguage', 'uploadQuality', 'downloadQuality',
+          'notificationsEnabled', 'createdAt', 'updatedAt'
+        ]) &&
+        incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+        incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+        isValidUserProfile(incoming(), userId);
+
+      allow update: if isOwner(userId) && isValidId(userId) &&
+        isValidUserProfile(incoming(), userId) &&
+        incoming().userId == existing().userId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+        (
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'displayName', 'username', 'bio', 'email', 'phone', 'avatarColorHex',
+            'darkMode', 'locationSharingEnabled', 'ghostMode', 'whoCanContact',
+            'whoCanViewStory', 'simAutoSnapEnabled', 'simOpenSpeed', 'soundsEnabled',
+            'vibrationEnabled', 'appLanguage', 'uploadQuality', 'downloadQuality',
+            'notificationsEnabled', 'updatedAt'
+          ]) ||
+          (
+            incoming().pnPoints >= existing().pnPoints &&
+            incoming().totalSnapsSent >= existing().totalSnapsSent &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['pnPoints', 'totalSnapsSent', 'updatedAt'])
+          )
+        );
+
+      allow delete: if isOwner(userId) && isValidId(userId);
+
+      match /notes/{noteId} {
+        allow get: if isOwner(userId) && isValidId(noteId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) && isValidId(noteId) &&
+          incoming().keys().hasAll(['userId', 'title', 'content', 'colorTag', 'pinned', 'createdAt', 'updatedAt']) &&
+          incoming().keys().hasOnly(['userId', 'title', 'content', 'colorTag', 'pinned', 'createdAt', 'updatedAt']) &&
+          incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+          incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+          isValidNote(incoming(), userId);
+
+        allow update: if isOwner(userId) && isValidId(noteId) &&
+          isValidNote(incoming(), userId) &&
+          incoming().userId == existing().userId &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['title', 'content', 'colorTag', 'pinned', 'updatedAt']);
+
+        allow delete: if isOwner(userId) && isValidId(noteId);
+      }
+
+      match /sent_snaps/{snapId} {
+        allow get: if isOwner(userId) && isValidId(snapId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) && isValidId(snapId) &&
+          incoming().keys().hasAll([
+            'userId', 'recipientId', 'recipientName', 'caption', 'filterName',
+            'mediaType', 'viewOnce', 'replayAllowed', 'timerSeconds', 'status',
+            'pnAwarded', 'createdAt', 'updatedAt'
+          ]) &&
+          incoming().keys().hasOnly([
+            'userId', 'recipientId', 'recipientName', 'caption', 'filterName',
+            'mediaType', 'viewOnce', 'replayAllowed', 'timerSeconds', 'status',
+            'pnAwarded', 'createdAt', 'updatedAt'
+          ]) &&
+          incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+          incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+          isValidSentSnap(incoming(), userId);
+
+        allow update: if isOwner(userId) && isValidId(snapId) &&
+          isValidSentSnap(incoming(), userId) &&
+          existing().status != 'EXPIRED' &&
+          incoming().userId == existing().userId &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']);
+
+        allow delete: if isOwner(userId) && isValidId(snapId);
+      }
+
+      match /pn_history/{entryId} {
+        allow get: if isOwner(userId) && isValidId(entryId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) && isValidId(entryId) &&
+          incoming().keys().hasAll(['userId', 'delta', 'reason', 'createdAt']) &&
+          incoming().keys().hasOnly(['userId', 'delta', 'reason', 'snapId', 'createdAt']) &&
+          incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+          isValidPnHistory(incoming(), userId);
+
+        allow update: if false;
+        allow delete: if isOwner(userId) && isValidId(entryId);
+      }
+
+      match /stories/{storyId} {
+        allow get: if isOwner(userId) && isValidId(storyId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) && isValidId(storyId) &&
+          incoming().keys().hasAll([
+            'userId', 'authorName', 'storyType', 'caption', 'filterName',
+            'musicTrack', 'privacy', 'bgColorHex', 'viewCount', 'expiresAtMillis',
+            'createdAt', 'updatedAt'
+          ]) &&
+          incoming().keys().hasOnly([
+            'userId', 'authorName', 'storyType', 'caption', 'filterName',
+            'musicTrack', 'privacy', 'bgColorHex', 'localMediaPath', 'viewCount',
+            'expiresAtMillis', 'createdAt', 'updatedAt'
+          ]) &&
+          incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+          incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+          isValidStory(incoming(), userId);
+
+        allow update: if isOwner(userId) && isValidId(storyId) &&
+          isValidStory(incoming(), userId) &&
+          incoming().userId == existing().userId &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['viewCount', 'privacy', 'updatedAt']);
+
+        allow delete: if isOwner(userId) && isValidId(storyId);
+      }
+
+      match /friend_states/{friendId} {
+        allow get: if isOwner(userId) && isValidId(friendId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) && isValidId(friendId) &&
+          incoming().keys().hasAll([
+            'userId', 'friendId', 'relationStatus', 'reported',
+            'unreadCount', 'lastMessage', 'createdAt', 'updatedAt'
+          ]) &&
+          incoming().keys().hasOnly([
+            'userId', 'friendId', 'relationStatus', 'reported',
+            'unreadCount', 'lastMessage', 'createdAt', 'updatedAt'
+          ]) &&
+          incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+          incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+          isValidFriendState(incoming(), userId, friendId);
+
+        allow update: if isOwner(userId) && isValidId(friendId) &&
+          isValidFriendState(incoming(), userId, friendId) &&
+          incoming().userId == existing().userId &&
+          incoming().friendId == existing().friendId &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'relationStatus', 'reported', 'unreadCount', 'lastMessage', 'updatedAt'
+          ]);
+
+        allow delete: if isOwner(userId) && isValidId(friendId);
+      }
+
+      match /chats/{friendId}/messages/{messageId} {
+        allow get: if isOwner(userId) && isValidId(friendId) && isValidId(messageId);
+        allow list: if isOwner(userId) && isValidId(friendId);
+
+        allow create: if isOwner(userId) && isValidId(friendId) && isValidId(messageId) &&
+          incoming().keys().hasAll([
+            'userId', 'friendId', 'senderRole', 'messageType', 'text',
+            'deliveryStatus', 'createdAt', 'updatedAt'
+          ]) &&
+          incoming().keys().hasOnly([
+            'userId', 'friendId', 'senderRole', 'messageType', 'text',
+            'mediaUri', 'reaction', 'deliveryStatus', 'createdAt', 'updatedAt'
+          ]) &&
+          incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+          incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+          isValidChatMessage(incoming(), userId, friendId);
+
+        allow update: if isOwner(userId) && isValidId(friendId) && isValidId(messageId) &&
+          isValidChatMessage(incoming(), userId, friendId) &&
+          incoming().userId == existing().userId &&
+          incoming().friendId == existing().friendId &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['reaction', 'deliveryStatus', 'updatedAt']);
+
+        allow delete: if isOwner(userId) && isValidId(friendId) && isValidId(messageId);
+      }
+
+      match /notifications/{notifId} {
+        allow get: if isOwner(userId) && isValidId(notifId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) && isValidId(notifId) &&
+          incoming().keys().hasAll(['userId', 'category', 'title', 'body', 'readFlag', 'createdAt', 'updatedAt']) &&
+          incoming().keys().hasOnly(['userId', 'category', 'title', 'body', 'readFlag', 'relatedId', 'createdAt', 'updatedAt']) &&
+          incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+          incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+          isValidNotification(incoming(), userId);
+
+        allow update: if isOwner(userId) && isValidId(notifId) &&
+          isValidNotification(incoming(), userId) &&
+          incoming().userId == existing().userId &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['readFlag', 'updatedAt']);
+
+        allow delete: if isOwner(userId) && isValidId(notifId);
+      }
+    }
+  }
+}

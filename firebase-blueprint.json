@@ -1,0 +1,201 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Authenticated NILESH SNAPCHAT user profile, PN Points wallet, and settings.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Firebase Auth UID of the owner." },
+        "displayName": { "type": "string", "description": "Display name." },
+        "username": { "type": "string", "description": "Public handle." },
+        "bio": { "type": "string", "description": "Profile bio." },
+        "email": { "type": "string", "description": "User email (owner-private PII)." },
+        "phone": { "type": "string", "description": "User phone number (owner-private PII)." },
+        "avatarColorHex": { "type": "string", "description": "Avatar accent hex color." },
+        "pnPoints": { "type": "integer", "description": "Total PN Points earned (+1000 per sent snap)." },
+        "totalSnapsSent": { "type": "integer", "description": "Total number of snaps sent." },
+        "darkMode": { "type": "boolean", "description": "Theme mode toggle." },
+        "locationSharingEnabled": { "type": "boolean", "description": "Explicit location sharing flag (default false)." },
+        "ghostMode": { "type": "boolean", "description": "Ghost mode flag (default true)." },
+        "whoCanContact": { "type": "string", "enum": ["everyone", "friends"] },
+        "whoCanViewStory": { "type": "string", "enum": ["friends", "close_friends", "private"] },
+        "simAutoSnapEnabled": { "type": "boolean" },
+        "simOpenSpeed": { "type": "string", "enum": ["realistic", "fast"] },
+        "soundsEnabled": { "type": "boolean" },
+        "vibrationEnabled": { "type": "boolean" },
+        "appLanguage": { "type": "string", "enum": ["english", "hinglish"] },
+        "uploadQuality": { "type": "string", "enum": ["standard", "high"] },
+        "downloadQuality": { "type": "string", "enum": ["standard", "high"] },
+        "notificationsEnabled": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp." }
+      },
+      "required": [
+        "userId", "displayName", "username", "pnPoints", "totalSnapsSent",
+        "darkMode", "locationSharingEnabled", "ghostMode", "createdAt", "updatedAt"
+      ]
+    },
+    "UserNote": {
+      "title": "UserNote",
+      "description": "Personal private note saved by the user.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "colorTag": { "type": "string" },
+        "pinned": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "title", "content", "colorTag", "pinned", "createdAt", "updatedAt"]
+    },
+    "SentSnap": {
+      "title": "SentSnap",
+      "description": "Snap sent by the user to a friend with real-time delivery status.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "recipientId": { "type": "string" },
+        "recipientName": { "type": "string" },
+        "caption": { "type": "string" },
+        "filterName": { "type": "string" },
+        "mediaType": { "type": "string", "enum": ["photo", "video"] },
+        "viewOnce": { "type": "boolean" },
+        "replayAllowed": { "type": "boolean" },
+        "timerSeconds": { "type": "integer" },
+        "status": { "type": "string", "enum": ["SENDING", "SENT", "DELIVERED", "OPENED", "EXPIRED"] },
+        "pnAwarded": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "userId", "recipientId", "recipientName", "caption", "filterName",
+        "mediaType", "viewOnce", "replayAllowed", "timerSeconds", "status",
+        "pnAwarded", "createdAt", "updatedAt"
+      ]
+    },
+    "PnHistoryEntry": {
+      "title": "PnHistoryEntry",
+      "description": "PN Points ledger entry.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "delta": { "type": "integer" },
+        "reason": { "type": "string" },
+        "snapId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "delta", "reason", "createdAt"]
+    },
+    "UserStory": {
+      "title": "UserStory",
+      "description": "24-hour Story created by the user.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "storyType": { "type": "string", "enum": ["photo", "video", "text"] },
+        "caption": { "type": "string" },
+        "filterName": { "type": "string" },
+        "musicTrack": { "type": "string" },
+        "privacy": { "type": "string", "enum": ["friends", "close_friends", "private"] },
+        "bgColorHex": { "type": "string" },
+        "localMediaPath": { "type": "string" },
+        "viewCount": { "type": "integer" },
+        "expiresAtMillis": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "userId", "authorName", "storyType", "caption", "filterName",
+        "musicTrack", "privacy", "bgColorHex", "viewCount", "expiresAtMillis",
+        "createdAt", "updatedAt"
+      ]
+    },
+    "FriendState": {
+      "title": "FriendState",
+      "description": "Relationship & unread metadata for an interacted simulated friend.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "friendId": { "type": "string" },
+        "relationStatus": { "type": "string", "enum": ["friend", "pending_incoming", "blocked", "none"] },
+        "reported": { "type": "boolean" },
+        "unreadCount": { "type": "integer" },
+        "lastMessage": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "friendId", "relationStatus", "reported", "unreadCount", "lastMessage", "createdAt", "updatedAt"]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "Private chat message between user and simulated friend.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "friendId": { "type": "string" },
+        "senderRole": { "type": "string", "enum": ["user", "friend"] },
+        "messageType": { "type": "string", "enum": ["text", "photo", "video", "voice", "sticker", "snap_reply"] },
+        "text": { "type": "string" },
+        "mediaUri": { "type": "string" },
+        "reaction": { "type": "string" },
+        "deliveryStatus": { "type": "string", "enum": ["SENT", "DELIVERED", "SEEN"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "friendId", "senderRole", "messageType", "text", "deliveryStatus", "createdAt", "updatedAt"]
+    },
+    "AppNotification": {
+      "title": "AppNotification",
+      "description": "User-scoped notification item.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "category": { "type": "string", "enum": ["snap", "chat", "friend_request", "story", "pn_points", "memory"] },
+        "title": { "type": "string" },
+        "body": { "type": "string" },
+        "readFlag": { "type": "boolean" },
+        "relatedId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "category", "title", "body", "readFlag", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Owner-private user profile, PN Points, and preferences."
+    },
+    "/users/{userId}/notes/{noteId}": {
+      "schema": { "$ref": "#/entities/UserNote" },
+      "description": "User personal notes."
+    },
+    "/users/{userId}/sent_snaps/{snapId}": {
+      "schema": { "$ref": "#/entities/SentSnap" },
+      "description": "Snaps sent by the user and their live delivery/opened status."
+    },
+    "/users/{userId}/pn_history/{entryId}": {
+      "schema": { "$ref": "#/entities/PnHistoryEntry" },
+      "description": "Immutable PN Points earning history."
+    },
+    "/users/{userId}/stories/{storyId}": {
+      "schema": { "$ref": "#/entities/UserStory" },
+      "description": "User 24-hour stories."
+    },
+    "/users/{userId}/friend_states/{friendId}": {
+      "schema": { "$ref": "#/entities/FriendState" },
+      "description": "Relationship state and unread counts per friend."
+    },
+    "/users/{userId}/chats/{friendId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/ChatMessage" },
+      "description": "Chat messages with a specific friend."
+    },
+    "/users/{userId}/notifications/{notifId}": {
+      "schema": { "$ref": "#/entities/AppNotification" },
+      "description": "In-app notifications feed."
+    }
+  }
+}
