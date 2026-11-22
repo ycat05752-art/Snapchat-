@@ -29,7 +29,7 @@ import kotlinx.coroutines.tasks.await
 class SnapFirestoreRepository(
     private val db: FirebaseFirestore,
     private val auth: FirebaseAuth = Firebase.auth
-) {
+) : SnapDataRepository {
     private fun requireUserId(expectedUserId: String): String {
         val uid = auth.currentUser?.uid
             ?: throw IllegalStateException("User must be signed in with Google before accessing Firestore.")
@@ -39,7 +39,7 @@ class SnapFirestoreRepository(
 
     private fun userDoc(userId: String) = db.collection("users").document(userId)
 
-    suspend fun ensureUserProfile(
+    override suspend fun ensureUserProfile(
         userId: String,
         displayName: String,
         email: String?
@@ -94,7 +94,7 @@ class SnapFirestoreRepository(
         }
     }
 
-    fun observeUserProfile(userId: String): Flow<UserProfile?> = flow {
+    override fun observeUserProfile(userId: String): Flow<UserProfile?> = flow {
         val uid = requireUserId(userId)
         val docRef = userDoc(uid)
         docRef.snapshots()
@@ -111,7 +111,7 @@ class SnapFirestoreRepository(
             .collect { emit(it) }
     }
 
-    suspend fun updateProfileSettings(
+    override suspend fun updateProfileSettings(
         userId: String,
         updates: Map<String, Any?>
     ): Result<Unit> {
@@ -132,7 +132,7 @@ class SnapFirestoreRepository(
         }
     }
 
-    fun observeNotes(userId: String): Flow<List<UserNote>> = flow {
+    override fun observeNotes(userId: String): Flow<List<UserNote>> = flow {
         val uid = requireUserId(userId)
         val colRef = userDoc(uid).collection("notes")
         colRef.orderBy("updatedAt", Query.Direction.DESCENDING)
@@ -147,7 +147,7 @@ class SnapFirestoreRepository(
             .collect { emit(it) }
     }
 
-    suspend fun saveNote(
+    override suspend fun saveNote(
         userId: String,
         noteId: String?,
         title: String,
@@ -194,7 +194,7 @@ class SnapFirestoreRepository(
         }
     }
 
-    suspend fun deleteNote(userId: String, noteId: String): Result<Unit> {
+    override suspend fun deleteNote(userId: String, noteId: String): Result<Unit> {
         val path = "users/$userId/notes/$noteId"
         return try {
             requireUserId(userId)
@@ -208,7 +208,7 @@ class SnapFirestoreRepository(
         }
     }
 
-    fun observeSentSnaps(userId: String): Flow<List<SentSnap>> = flow {
+    override fun observeSentSnaps(userId: String): Flow<List<SentSnap>> = flow {
         val uid = requireUserId(userId)
         val colRef = userDoc(uid).collection("sent_snaps")
         colRef.orderBy("createdAt", Query.Direction.DESCENDING)
@@ -223,7 +223,7 @@ class SnapFirestoreRepository(
             .collect { emit(it) }
     }
 
-    suspend fun sendSnapAndAwardPnPoints(
+    override suspend fun sendSnapAndAwardPnPoints(
         userId: String,
         recipientId: String,
         recipientName: String,
@@ -326,7 +326,7 @@ class SnapFirestoreRepository(
         }
     }
 
-    suspend fun updateSentSnapStatus(
+    override suspend fun updateSentSnapStatus(
         userId: String,
         snapId: String,
         newStatus: String
@@ -349,7 +349,7 @@ class SnapFirestoreRepository(
         }
     }
 
-    fun observePnHistory(userId: String): Flow<List<PnHistoryEntry>> = flow {
+    override fun observePnHistory(userId: String): Flow<List<PnHistoryEntry>> = flow {
         val uid = requireUserId(userId)
         val colRef = userDoc(uid).collection("pn_history")
         colRef.orderBy("createdAt", Query.Direction.DESCENDING)
@@ -365,7 +365,7 @@ class SnapFirestoreRepository(
             .collect { emit(it) }
     }
 
-    fun observeStories(userId: String): Flow<List<UserStory>> = flow {
+    override fun observeStories(userId: String): Flow<List<UserStory>> = flow {
         val uid = requireUserId(userId)
         val colRef = userDoc(uid).collection("stories")
         colRef.orderBy("createdAt", Query.Direction.DESCENDING)
@@ -382,7 +382,7 @@ class SnapFirestoreRepository(
             .collect { emit(it) }
     }
 
-    suspend fun createStory(
+    override suspend fun createStory(
         userId: String,
         authorName: String,
         storyType: String,
@@ -423,7 +423,7 @@ class SnapFirestoreRepository(
         }
     }
 
-    suspend fun incrementStoryView(userId: String, storyId: String): Result<Unit> {
+    override suspend fun incrementStoryView(userId: String, storyId: String): Result<Unit> {
         val path = "users/$userId/stories/$storyId"
         return try {
             requireUserId(userId)
@@ -442,7 +442,7 @@ class SnapFirestoreRepository(
         }
     }
 
-    suspend fun deleteStory(userId: String, storyId: String): Result<Unit> {
+    override suspend fun deleteStory(userId: String, storyId: String): Result<Unit> {
         val path = "users/$userId/stories/$storyId"
         return try {
             requireUserId(userId)
@@ -456,7 +456,7 @@ class SnapFirestoreRepository(
         }
     }
 
-    fun observeFriendStates(userId: String): Flow<List<FriendState>> = flow {
+    override fun observeFriendStates(userId: String): Flow<List<FriendState>> = flow {
         val uid = requireUserId(userId)
         val colRef = userDoc(uid).collection("friend_states")
         colRef.snapshots()
@@ -470,13 +470,13 @@ class SnapFirestoreRepository(
             .collect { emit(it) }
     }
 
-    suspend fun upsertFriendState(
+    override suspend fun upsertFriendState(
         userId: String,
         friendId: String,
-        relationStatus: String? = null,
-        reported: Boolean? = null,
-        unreadCount: Long? = null,
-        lastMessage: String? = null
+        relationStatus: String?,
+        reported: Boolean?,
+        unreadCount: Long?,
+        lastMessage: String?
     ): Result<Unit> {
         val path = "users/$userId/friend_states/$friendId"
         return try {
@@ -513,7 +513,7 @@ class SnapFirestoreRepository(
         }
     }
 
-    fun observeChatMessages(userId: String, friendId: String): Flow<List<ChatMessage>> = flow {
+    override fun observeChatMessages(userId: String, friendId: String): Flow<List<ChatMessage>> = flow {
         val uid = requireUserId(userId)
         val colRef = userDoc(uid).collection("chats").document(friendId).collection("messages")
         colRef.orderBy("createdAt", Query.Direction.ASCENDING)
@@ -528,13 +528,13 @@ class SnapFirestoreRepository(
             .collect { emit(it) }
     }
 
-    suspend fun sendChatMessage(
+    override suspend fun sendChatMessage(
         userId: String,
         friendId: String,
         senderRole: String,
         messageType: String,
         text: String,
-        mediaUri: String? = null
+        mediaUri: String?
     ): Result<Unit> {
         val path = "users/$userId/chats/$friendId/messages"
         return try {
@@ -575,7 +575,7 @@ class SnapFirestoreRepository(
         }
     }
 
-    suspend fun updateMessageReaction(
+    override suspend fun updateMessageReaction(
         userId: String,
         friendId: String,
         messageId: String,
@@ -601,7 +601,7 @@ class SnapFirestoreRepository(
         }
     }
 
-    fun observeNotifications(userId: String): Flow<List<AppNotification>> = flow {
+    override fun observeNotifications(userId: String): Flow<List<AppNotification>> = flow {
         val uid = requireUserId(userId)
         val colRef = userDoc(uid).collection("notifications")
         colRef.orderBy("createdAt", Query.Direction.DESCENDING)
@@ -617,12 +617,12 @@ class SnapFirestoreRepository(
             .collect { emit(it) }
     }
 
-    suspend fun addNotification(
+    override suspend fun addNotification(
         userId: String,
         category: String,
         title: String,
         body: String,
-        relatedId: String? = null
+        relatedId: String?
     ): Result<Unit> {
         val path = "users/$userId/notifications"
         return try {
@@ -648,7 +648,7 @@ class SnapFirestoreRepository(
         }
     }
 
-    suspend fun markNotificationRead(userId: String, notifId: String): Result<Unit> {
+    override suspend fun markNotificationRead(userId: String, notifId: String): Result<Unit> {
         val path = "users/$userId/notifications/$notifId"
         return try {
             requireUserId(userId)
@@ -667,7 +667,7 @@ class SnapFirestoreRepository(
         }
     }
 
-    suspend fun deleteUserProfile(userId: String): Result<Unit> {
+    override suspend fun deleteUserProfile(userId: String): Result<Unit> {
         val path = "users/$userId"
         return try {
             requireUserId(userId)

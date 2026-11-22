@@ -11,7 +11,9 @@ import kotlinx.coroutines.withTimeout
 
 private const val TAG = "AiFriendChatRepo"
 
-class AiFriendChatRepository {
+class AiFriendChatRepository(
+    private val firebaseEnabled: Boolean = true
+) {
 
     private val model by lazy {
         Firebase.ai.generativeModel("gemini-3.8-flash")
@@ -22,6 +24,11 @@ class AiFriendChatRepository {
         recentMessages: List<ChatMessage>,
         userMessage: String
     ): Result<String> {
+        if (!firebaseEnabled) {
+            return Result.failure(
+                IllegalStateException("Gemini AI chat requires Firebase config (app/google-services.json) in the build.")
+            )
+        }
         return try {
             val historyLines = recentMessages.takeLast(8).joinToString("\n") { msg ->
                 val speaker = if (msg.senderRole == "user") "User" else friend.name

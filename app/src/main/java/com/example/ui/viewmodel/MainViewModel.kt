@@ -28,7 +28,7 @@ import com.example.data.model.UserNote
 import com.example.data.model.UserProfile
 import com.example.data.model.UserStory
 import com.example.data.repository.AiFriendChatRepository
-import com.example.data.repository.SnapFirestoreRepository
+import com.example.data.repository.SnapDataRepository
 import com.google.firebase.firestore.FirebaseFirestoreException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -62,7 +62,7 @@ data class CapturedSnapDraft(
 )
 
 class MainViewModel(
-    private val firestoreRepo: SnapFirestoreRepository,
+    private val firestoreRepo: SnapDataRepository,
     private val aiChatRepo: AiFriendChatRepository,
     private val localDb: AppLocalDatabase,
     private val prefsStore: UserPreferencesStore,
@@ -696,6 +696,15 @@ class MainViewModel(
         viewModelScope.launch {
             firestoreRepo.deleteUserProfile(currentUserId)
             onComplete()
+        }
+    }
+
+    fun resetLocalDataAndReinit(displayName: String = "Nilesh User") {
+        viewModelScope.launch {
+            firestoreRepo.deleteUserProfile(currentUserId)
+            firestoreRepo.ensureUserProfile(currentUserId, displayName, null)
+            seedInitialSimulatedDataIfEmpty()
+            _bannerMessage.value = "Local app data reset!"
         }
     }
 

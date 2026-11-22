@@ -80,6 +80,8 @@ import com.example.data.local.UserPreferencesStore
 import com.example.data.model.FilterCatalog
 import com.example.data.model.UiState
 import com.example.data.repository.AiFriendChatRepository
+import com.example.data.repository.LocalFallbackSnapRepository
+import com.example.data.repository.SnapDataRepository
 import com.example.data.repository.SnapFirestoreRepository
 import com.example.ui.theme.NileshSnapchatTheme
 import com.example.ui.theme.ObsidianBlack
@@ -115,38 +117,26 @@ fun NileshSnapchatApp() {
         FirebaseApp.getApps(context).isNotEmpty() || FirebaseApp.initializeApp(context) != null
     }
 
+    var showSplash by remember { mutableStateOf(true) }
+
     if (!firebaseInitialized) {
-        NileshSnapchatTheme(darkTheme = true) {
-            Surface(
-                modifier = Modifier.fillMaxSize(),
-                color = ObsidianBlack
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(24.dp),
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text = "NILESH SNAPCHAT",
-                        style = MaterialTheme.typography.headlineSmall.copy(
-                            color = SnapYellow,
-                            fontWeight = FontWeight.Bold
-                        )
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(
-                        text = "Firebase config (app/google-services.json) was not included in this build. Add app/google-services.json to the repository and rebuild to enable Google Sign-In, Firestore, and AI Chat.",
-                        style = MaterialTheme.typography.bodyMedium.copy(color = PureWhite)
-                    )
-                }
+        if (showSplash) {
+            NileshSnapchatTheme(darkTheme = true) {
+                SplashScreen(onSplashFinished = { showSplash = false })
+            }
+        } else {
+            key("local_nilesh_user") {
+                AuthenticatedNileshShell(
+                    currentUserId = "local_nilesh_user",
+                    displayName = "Nilesh User",
+                    email = null,
+                    firebaseEnabled = false
+                )
             }
         }
         return
     }
 
-    var showSplash by remember { mutableStateOf(true) }
     var currentUser by remember { mutableStateOf(Firebase.auth.currentUser) }
 
     DisposableEffect(Unit) {
@@ -172,7 +162,8 @@ fun NileshSnapchatApp() {
             AuthenticatedNileshShell(
                 currentUserId = uid,
                 displayName = user.displayName ?: "Nilesh User",
-                email = user.email
+                email = user.email,
+                firebaseEnabled = true
             )
         }
     }
@@ -182,24 +173,31 @@ fun NileshSnapchatApp() {
 private fun AuthenticatedNileshShell(
     currentUserId: String,
     displayName: String,
-    email: String?
+    email: String?,
+    firebaseEnabled: Boolean = true
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val credentialManager = remember(context) { CredentialManager.create(context) }
+    val credentialManager = remember(context, firebaseEnabled) {
+        if (firebaseEnabled) CredentialManager.create(context) else null
+    }
 
     val viewModel: MainViewModel = viewModel(
-        key = currentUserId,
+        key = "${currentUserId}_$firebaseEnabled",
         factory = viewModelFactory {
             initializer {
                 val app = checkNotNull(this[APPLICATION_KEY]) {
                     "APPLICATION_KEY missing from CreationExtras"
                 }
-                val databaseId = app.getString(R.string.firestore_database_id)
-                val db = FirebaseFirestore.getInstance(databaseId)
+                val repo: SnapDataRepository = if (firebaseEnabled) {
+                    val databaseId = app.getString(R.string.firestore_database_id)
+                    SnapFirestoreRepository(FirebaseFirestore.getInstance(databaseId))
+                } else {
+                    LocalFallbackSnapRepository(app)
+                }
                 MainViewModel(
-                    firestoreRepo = SnapFirestoreRepository(db),
-                    aiChatRepo = AiFriendChatRepository(),
+                    firestoreRepo = repo,
+                    aiChatRepo = AiFriendChatRepository(firebaseEnabled = firebaseEnabled),
                     localDb = AppLocalDatabase.getInstance(app),
                     prefsStore = UserPreferencesStore(app),
                     currentUserId = currentUserId,
@@ -323,11 +321,21 @@ private fun AuthenticatedNileshShell(
                     onUnblockFriend = { fid -> viewModel.setFriendRelation(fid, "friend", false) },
                     onTriggerSimulatedSnapNow = { viewModel.triggerSimulatedIncomingSnap(context) },
                     onLogOut = {
-                        signOutUser(credentialManager, scope)
+                        val cm = credentialManager
+                        if (firebaseEnabled && cm != null) {
+                            signOutUser(cm, scope)
+                        } else {
+                            viewModel.showBanner("Local mode active — add app/google-services.json for Google Sign-In.")
+                        }
                     },
                     onDeleteAccount = {
-                        viewModel.deleteAccount {
-                            signOutUser(credentialManager, scope)
+                        val cm = credentialManager
+                        if (firebaseEnabled && cm != null) {
+                            viewModel.deleteAccount {
+                                signOutUser(cm, scope)
+                            }
+                        } else {
+                            viewModel.resetLocalDataAndReinit(displayName)
                         }
                     },
                     onShowMessage = { msg -> viewModel.showBanner(msg) }
